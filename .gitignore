@@ -76,4 +76,4 @@ Thumbs.db
 # Application specific
 tweets.db
 config.py
-browser_data/
+browser_data/.venv/
