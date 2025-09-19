@@ -19,21 +19,41 @@ def main():
     print("__file__:", __file__)
     print("Current working directory:", os.getcwd())
 
+    # 修复导入路径问题
+    # 添加当前目录到sys.path
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+
     try:
-        # 首先尝试相对导入
-        from .ui.main_window import MainWindow
+        # 首先尝试直接导入（适用于打包后的环境）
+        from ui.main_window import MainWindow
         print("Successfully imported MainWindow")
     except ImportError as e:
-        print(f"Relative import failed: {e}")
+        print(f"Direct import failed: {e}")
         try:
-            # 备用：绝对导入
-            from ui.main_window import MainWindow
-            print("Successfully imported MainWindow via absolute import")
+            # 备用：相对导入
+            from .ui.main_window import MainWindow
+            print("Successfully imported MainWindow via relative import")
         except ImportError as e2:
-            print(f"Absolute import also failed: {e2}")
-            import traceback
-            traceback.print_exc()
-            raise
+            print(f"Relative import also failed: {e2}")
+            try:
+                # 最后尝试：绝对路径导入
+                import importlib.util
+                ui_path = os.path.join(current_dir, 'ui', 'main_window.py')
+                spec = importlib.util.spec_from_file_location("main_window", ui_path)
+                if spec is not None and spec.loader is not None:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    MainWindow = module.MainWindow
+                    print("Successfully imported MainWindow via absolute path")
+                else:
+                    raise ImportError("Failed to create module spec")
+            except Exception as e3:
+                print(f"All import methods failed: {e3}")
+                import traceback
+                traceback.print_exc()
+                raise
 
     from PyQt6.QtWidgets import QApplication
 
