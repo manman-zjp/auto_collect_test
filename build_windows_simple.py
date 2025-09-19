@@ -1,17 +1,50 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-简化的Windows构建脚本
-在macOS上使用不同方法构建Windows版本
+简化的 Windows 构建脚本
+仅包含核心功能，避免复杂的依赖和配置
 """
 
-import sys
 import os
+import sys
 import platform
 import subprocess
 import shutil
 from pathlib import Path
-import tempfile
+
+# 设置UTF-8编码输出
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+def safe_print(text):
+    """安全的打印函数，处理编码问题"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # 如果中文输出失败，使用英文替代
+        english_translations = {
+            "简化 Windows 构建开始": "Simple Windows build started",
+            "清理构建目录": "Cleaning build directories", 
+            "清理完成": "Cleaning completed",
+            "检查必要文件": "Checking required files",
+            "文件检查完成": "File check completed",
+            "开始 PyInstaller 构建": "Starting PyInstaller build",
+            "构建成功": "Build successful",
+            "构建失败": "Build failed",
+            "错误": "Error"
+        }
+        
+        for chinese, english in english_translations.items():
+            if chinese in text:
+                print(text.replace(chinese, english))
+                return
+        
+        # 如果没有找到翻译，尝试只打印ASCII字符
+        ascii_text = ''.join(char if ord(char) < 128 else '?' for char in text)
+        print(ascii_text)
 
 def check_wine():
     """检查Wine是否已安装"""

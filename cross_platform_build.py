@@ -15,6 +15,43 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+# 设置UTF-8编码输出
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+def safe_print(text):
+    """安全的打印函数，处理编码问题"""
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        # 如果中文输出失败，使用英文替代
+        english_translations = {
+            "🔨 构建当前平台": "🔨 Building current platform",
+            "版本...": " version...",
+            "✅ 当前平台构建成功": "✅ Current platform build successful",
+            "❌ 当前平台构建失败": "❌ Current platform build failed",
+            "错误输出": "Error output",
+            "🐳 使用 Docker 构建 Windows 版本...": "🐳 Building Windows version with Docker...",
+            "正在构建 Docker 镜像...": "Building Docker image...",
+            "正在运行 Windows 构建...": "Running Windows build...",
+            "✅ Windows 版本构建成功": "✅ Windows version build successful",
+            "❌ Windows Docker 构建失败": "❌ Windows Docker build failed",
+            "❌ 未找到 Docker，请先安装 Docker Desktop": "❌ Docker not found, please install Docker Desktop",
+            "🚀 配置 GitHub Actions 自动构建...": "🚀 Configuring GitHub Actions auto-build...",
+        }
+        
+        for chinese, english in english_translations.items():
+            if chinese in text:
+                print(text.replace(chinese, english))
+                return
+        
+        # 如果没有找到翻译，尝试只打印ASCII字符
+        ascii_text = ''.join(char if ord(char) < 128 else '?' for char in text)
+        print(ascii_text)
+
 def get_project_info():
     """获取项目信息"""
     return {
@@ -26,21 +63,21 @@ def get_project_info():
 
 def build_current_platform():
     """构建当前平台版本"""
-    print(f"🔨 构建当前平台 ({platform.system()}) 版本...")
+    safe_print(f"🔨 构建当前平台 ({platform.system()}) 版本...")
     
     # 调用现有的构建脚本
     try:
         result = subprocess.run([sys.executable, "build.py"], check=True, capture_output=True, text=True)
-        print("✅ 当前平台构建成功")
+        safe_print("✅ 当前平台构建成功")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ 当前平台构建失败: {e}")
-        print(f"错误输出: {e.stderr}")
+        safe_print(f"❌ 当前平台构建失败: {e}")
+        safe_print(f"错误输出: {e.stderr}")
         return False
 
 def build_windows_with_docker():
     """使用 Docker 构建 Windows 版本"""
-    print("🐳 使用 Docker 构建 Windows 版本...")
+    safe_print("🐳 使用 Docker 构建 Windows 版本...")
     
     # 创建 Dockerfile
     dockerfile_content = '''FROM python:3.12-windowsservercore
@@ -114,7 +151,7 @@ if __name__ == "__main__":
     
     try:
         # 构建 Docker 镜像
-        print("正在构建 Docker 镜像...")
+        safe_print("正在构建 Docker 镜像...")
         subprocess.run([
             "docker", "build", 
             "-f", "Dockerfile.windows",
@@ -123,7 +160,7 @@ if __name__ == "__main__":
         ], check=True)
         
         # 运行容器并复制构建结果
-        print("正在运行 Windows 构建...")
+        safe_print("正在运行 Windows 构建...")
         container_name = "autocollect-windows-build"
         
         # 运行容器
@@ -143,14 +180,14 @@ if __name__ == "__main__":
         # 清理容器
         subprocess.run(["docker", "rm", container_name], check=False)
         
-        print("✅ Windows 版本构建成功")
+        safe_print("✅ Windows 版本构建成功")
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"❌ Windows Docker 构建失败: {e}")
+        safe_print(f"❌ Windows Docker 构建失败: {e}")
         return False
     except FileNotFoundError:
-        print("❌ 未找到 Docker，请先安装 Docker Desktop")
+        safe_print("❌ 未找到 Docker，请先安装 Docker Desktop")
         return False
     finally:
         # 清理临时文件
@@ -160,7 +197,7 @@ if __name__ == "__main__":
 
 def build_windows_with_github_actions():
     """使用 GitHub Actions 构建 Windows 版本"""
-    print("🚀 配置 GitHub Actions 自动构建...")
+    safe_print("🚀 配置 GitHub Actions 自动构建...")
     
     # 创建 GitHub Actions 工作流
     workflow_dir = Path(".github/workflows")
@@ -236,15 +273,15 @@ jobs:
     workflow_file = workflow_dir / "build.yml"
     workflow_file.write_text(workflow_content)
     
-    print("✅ GitHub Actions 工作流已创建")
-    print("📝 请将代码推送到 GitHub，Actions 将自动构建两个平台版本")
-    print(f"📁 工作流文件: {workflow_file.absolute()}")
+    safe_print("✅ GitHub Actions 工作流已创建")
+    safe_print("📝 请将代码推送到 GitHub，Actions 将自动构建两个平台版本")
+    safe_print(f"📁 工作流文件: {workflow_file.absolute()}")
     
     return True
 
 def create_release_package():
     """创建发布包"""
-    print("📦 创建发布包...")
+    safe_print("📦 创建发布包...")
     
     project_info = get_project_info()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -267,7 +304,7 @@ def create_release_package():
         if (macos_dist / "AutoCollect.app").exists():
             shutil.copytree(macos_dist / "AutoCollect.app", macos_release / "AutoCollect.app")
             
-        print("✅ macOS 版本已复制到发布包")
+        safe_print("✅ macOS 版本已复制到发布包")
     
     # 复制 Windows 版本（如果存在）
     windows_dist = Path("dist_windows")
@@ -275,7 +312,7 @@ def create_release_package():
         windows_release = release_dir / "Windows"
         windows_release.mkdir(exist_ok=True)
         shutil.copytree(windows_dist, windows_release / "AutoCollect")
-        print("✅ Windows 版本已复制到发布包")
+        safe_print("✅ Windows 版本已复制到发布包")
     
     # 创建说明文件
     readme_content = f'''# {project_info["name"]} v{project_info["version"]}
@@ -339,7 +376,7 @@ def create_release_package():
     
     (release_dir / "version.json").write_text(json.dumps(version_info, indent=2, ensure_ascii=False))
     
-    print(f"✅ 发布包已创建: {release_dir.absolute()}")
+    safe_print(f"✅ 发布包已创建: {release_dir.absolute()}")
     return release_dir
 
 def main():
