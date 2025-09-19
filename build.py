@@ -95,6 +95,10 @@ def create_macos_app(dist_dir):
     app_dir = dist_dir.parent / app_name
     
     try:
+        # 删除旧的.app包
+        if app_dir.exists():
+            shutil.rmtree(app_dir)
+        
         # 创建应用程序包结构
         contents_dir = app_dir / "Contents"
         macos_dir = contents_dir / "MacOS"
@@ -104,9 +108,10 @@ def create_macos_app(dist_dir):
         for dir_path in [contents_dir, macos_dir, resources_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
         
-        # 复制可执行文件和依赖
+        # 复制整个应用目录到MacOS目录下（重命名避免冲突）
         if dist_dir.exists():
-            shutil.copytree(dist_dir, macos_dir / "AutoCollect", dirs_exist_ok=True)
+            app_exec_dir = macos_dir / "AutoCollect_App" 
+            shutil.copytree(dist_dir, app_exec_dir)
         
         # 创建Info.plist文件
         info_plist = contents_dir / "Info.plist"
@@ -115,7 +120,7 @@ def create_macos_app(dist_dir):
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>AutoCollect/AutoCollect</string>
+    <string>AutoCollect</string>
     <key>CFBundleIdentifier</key>
     <string>com.autocollect.app</string>
     <key>CFBundleName</key>
@@ -130,16 +135,26 @@ def create_macos_app(dist_dir):
     <string>10.14</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSBackgroundOnly</key>
+    <false/>
 </dict>
 </plist>'''
         
         info_plist.write_text(plist_content)
         
         # 创建启动脚本
-        launcher_script = macos_dir / "AutoCollect_launcher"
-        launcher_content = f'''#!/bin/bash
-cd "$(dirname "$0")"
-./AutoCollect/AutoCollect
+        launcher_script = macos_dir / "AutoCollect"
+        launcher_content = '''#!/bin/bash
+# AutoCollect 应用启动器
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 设置工作目录为应用包所在目录的上级目录
+cd "$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")" 
+
+# 启动应用程序
+exec "$SCRIPT_DIR/AutoCollect_App/AutoCollect" "$@"
 '''
         launcher_script.write_text(launcher_content)
         launcher_script.chmod(0o755)
