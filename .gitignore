@@ -57,6 +57,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Playwright binaries (large files)
+playwright/
+**/playwright/driver/
+
 # IDEs
 .vscode/
 .idea/
